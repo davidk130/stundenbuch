@@ -5,6 +5,6 @@
 // Den Secret Key (beginnt mit sb_secret_) trägst du NIEMALS hier ein.
 
 window.STUNDENBUCH_CONFIG = {
-  supabaseUrl: "https://ovtxyxdaxyjekrwcznee.supabase.co/rest/v1/",
+  supabaseUrl: "https://ovtxyxdaxyjekrwcznee.supabase.co",
   supabaseKey: "sb_publishable_6ZnbWpxF_Y510plYNq6VUw_S6DYOcic",
 };
