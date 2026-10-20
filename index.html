@@ -1,0 +1,526 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Stundenbuch</title>
+<meta name="description" content="Lernzeit tracken, auswerten und mit Freunden vergleichen.">
+<meta name="theme-color" content="#ffd23f">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Archivo:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700;800&display=swap">
+<style>
+/* Neubrutalism: flache Signalfarben, dicke Konturen, harte versetzte Schatten ohne Unschärfe.
+   Farbe trägt Bedeutung: Gelb = bereit, Grün = läuft, Pink = bewerten. */
+:root{
+  --bg:#fff3d1; --dot:rgba(17,17,17,.10);
+  --surface:#ffffff; --ink:#111111; --ink-2:#333333; --muted:#5c5a55;
+  --edge:#111111; --on-color:#111111;
+  --yellow:#ffd23f; --pink:#ff8fb7; --cyan:#62dcf2; --lime:#b8f15a; --violet:#c3b3ff; --orange:#ffad5c;
+  --good:#11751a; --danger:#c62828; --danger-fill:#ff6b6b;
+  --heat0:#f3e9cb;
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100; --s5:#e87ba4; --s6:#008300; --s7:#6250d6; --s8:#e34948;
+  --bw:2.5px; --r:10px;
+  --sh:5px 5px 0 var(--edge); --sh-sm:3px 3px 0 var(--edge); --sh-lg:7px 7px 0 var(--edge);
+  --f-display:"Archivo Black","Arial Black",Impact,system-ui,sans-serif;
+  --f-body:"Archivo",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#16151b; --dot:rgba(246,243,234,.07);
+    --surface:#24232c; --ink:#f6f3ea; --ink-2:#d6d1c4; --muted:#a8a397;
+    --edge:#f6f3ea; --on-color:#111111;
+    --good:#5bd66a; --danger:#ff7b7b; --danger-fill:#ff6b6b;
+    --heat0:#33313d;
+    --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#008300; --s7:#9085e9; --s8:#e66767;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#16151b; --dot:rgba(246,243,234,.07);
+  --surface:#24232c; --ink:#f6f3ea; --ink-2:#d6d1c4; --muted:#a8a397;
+  --edge:#f6f3ea; --on-color:#111111;
+  --good:#5bd66a; --danger:#ff7b7b; --danger-fill:#ff6b6b;
+  --heat0:#33313d;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#008300; --s7:#9085e9; --s8:#e66767;
+  color-scheme:dark;
+}
+
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{-webkit-text-size-adjust:100%}
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0;background-color:var(--bg);background-image:radial-gradient(var(--dot) 1.2px,transparent 1.3px);background-size:22px 22px;color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.5;-webkit-font-smoothing:antialiased}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+img{max-width:100%}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--s1);outline-offset:2px}
+.wrap{max-width:1120px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:22px 64px}
+h1,h2,h3{margin:0;text-wrap:balance}
+h2{font-family:var(--f-display);font-weight:400;font-size:1.25rem;line-height:1.15;text-transform:uppercase;letter-spacing:.01em;display:flex;align-items:baseline;flex-wrap:wrap;gap:6px 10px}
+h2 .aside{font-family:var(--f-body);font-size:.85rem;font-weight:600;text-transform:none;letter-spacing:0;color:var(--muted)}
+p{margin:0}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}
+.small{font-size:.88rem}
+
+/* ---------- Kopf ---------- */
+.masthead{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px;margin-bottom:22px}
+.logo{display:inline-block;font-family:var(--f-display);font-size:clamp(2rem,7vw,3.1rem);line-height:1;text-transform:uppercase;letter-spacing:-.01em;background:var(--yellow);color:var(--on-color);border:3px solid var(--edge);border-radius:var(--r);box-shadow:var(--sh-lg);padding:10px 16px 12px;transform:rotate(-1.5deg)}
+.tags{display:flex;flex-wrap:wrap;gap:8px}
+.tag{display:inline-flex;align-items:baseline;gap:6px;border:var(--bw) solid var(--edge);border-radius:999px;padding:4px 12px;font-weight:700;box-shadow:var(--sh-sm);background:var(--surface);color:var(--ink)}
+.tag small{font-family:var(--f-mono);font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;font-weight:700;opacity:.75}
+.tag.c1{background:var(--cyan);color:var(--on-color)}
+.tag.c2{background:var(--pink);color:var(--on-color)}
+.tag.c3{background:var(--lime);color:var(--on-color)}
+
+/* ---------- Tabs ---------- */
+.tabs{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;padding-block:10px;margin-bottom:14px;background:var(--bg)}
+.tabs button{border:var(--bw) solid var(--edge);border-radius:var(--r);background:var(--surface);box-shadow:var(--sh-sm);padding:9px 4px;font-family:var(--f-display);font-size:clamp(.78rem,2.8vw,1rem);text-transform:uppercase;cursor:pointer;color:var(--ink);transition:transform .08s,box-shadow .08s}
+.tabs button:hover{background:var(--yellow);color:var(--on-color)}
+.tabs button[aria-selected="true"]{background:var(--ink);color:var(--bg);transform:translate(3px,3px);box-shadow:none}
+.live-dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--s8);border:1.5px solid var(--edge);margin-left:6px;vertical-align:1px;animation:pulse 1.4s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.3}}
+
+.banner{border:var(--bw) solid var(--edge);border-radius:var(--r);background:var(--orange);color:var(--on-color);box-shadow:var(--sh-sm);padding:10px 14px;margin-bottom:16px;font-weight:600;display:flex;gap:12px;align-items:center;justify-content:space-between}
+.banner button{flex:none}
+
+/* ---------- Bausteine ---------- */
+.grid2{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:22px;align-items:start}
+.col,.stack{display:flex;flex-direction:column;gap:22px;min-width:0}
+@media (max-width:860px){.grid2{grid-template-columns:minmax(0,1fr)}}
+.card{background:var(--surface);border:var(--bw) solid var(--edge);border-radius:var(--r);box-shadow:var(--sh);padding:18px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:9px 18px;border:var(--bw) solid var(--edge);border-radius:var(--r);background:var(--surface);color:var(--ink);font-weight:800;cursor:pointer;box-shadow:var(--sh-sm);transition:transform .08s,box-shadow .08s;text-decoration:none}
+.btn:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--edge)}
+.btn:active{transform:translate(3px,3px);box-shadow:none}
+.btn:disabled{opacity:.45;cursor:not-allowed;transform:none;box-shadow:var(--sh-sm)}
+.btn.y{background:var(--yellow);color:var(--on-color)}
+.btn.c{background:var(--cyan);color:var(--on-color)}
+.btn.p{background:var(--pink);color:var(--on-color)}
+.btn.l{background:var(--lime);color:var(--on-color)}
+.btn.ink{background:var(--ink);color:var(--bg)}
+.btn.danger{background:var(--danger-fill);color:var(--on-color)}
+.btn.sm{min-height:34px;padding:5px 12px;font-size:.88rem;box-shadow:2px 2px 0 var(--edge)}
+.btn.big{min-height:56px;padding:12px 30px;font-family:var(--f-display);font-weight:400;font-size:1.25rem;text-transform:uppercase;box-shadow:var(--sh)}
+.linkbtn{background:none;border:0;padding:0;font-weight:700;color:var(--ink);text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:3px;cursor:pointer}
+.field{display:flex;flex-direction:column;gap:5px;min-width:0}
+.field>span,.lbl{font-family:var(--f-mono);font-size:.7rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}
+.inp,.field input,.field select{width:100%;min-width:0;min-height:44px;padding:9px 12px;border:var(--bw) solid var(--edge);border-radius:8px;background:var(--surface);color:var(--ink)}
+.inp:focus,.field input:focus,.field select:focus{outline:none;box-shadow:var(--sh-sm);background:var(--bg)}
+.form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.form .full{grid-column:1/-1}
+@media (max-width:480px){.form{grid-template-columns:minmax(0,1fr)}}
+.row-btns{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.seg{display:inline-flex;flex-wrap:wrap;gap:8px}
+.seg button{border:var(--bw) solid var(--edge);border-radius:999px;background:var(--surface);color:var(--ink);padding:6px 14px;font-weight:700;cursor:pointer;box-shadow:2px 2px 0 var(--edge)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg);box-shadow:none;transform:translate(2px,2px)}
+.focus5{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+.focus5 button{display:flex;flex-direction:column;align-items:center;gap:1px;padding:8px 2px;border:var(--bw) solid var(--edge);border-radius:8px;background:var(--surface);color:var(--ink);cursor:pointer;box-shadow:2px 2px 0 var(--edge)}
+.focus5 button b{font-family:var(--f-display);font-weight:400;font-size:1.3rem;line-height:1.1}
+.focus5 button span{font-size:.68rem;font-weight:700;line-height:1.1;text-align:center}
+.focus5 button[aria-pressed="true"]{background:var(--ink);color:var(--bg);box-shadow:none;transform:translate(2px,2px)}
+.msg{font-weight:700;min-height:1.5em}
+.msg.err{color:var(--danger)}
+.msg.ok{color:var(--good)}
+.confirm{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-weight:700}
+.sw{display:inline-block;flex:none;width:12px;height:12px;border-radius:50%;border:1.5px solid var(--edge)}
+.empty{color:var(--muted);font-weight:500}
+
+/* ---------- Anmeldung ---------- */
+.auth{max-width:460px;margin:12px auto 0;display:flex;flex-direction:column;gap:18px}
+.auth .card{gap:16px}
+.auth-switch{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.auth-switch button{border:var(--bw) solid var(--edge);border-radius:8px;padding:9px;background:var(--surface);color:var(--ink);font-family:var(--f-display);text-transform:uppercase;cursor:pointer;box-shadow:2px 2px 0 var(--edge)}
+.auth-switch button[aria-pressed="true"]{background:var(--yellow);color:var(--on-color);transform:translate(2px,2px);box-shadow:none}
+.pitch{display:flex;flex-direction:column;gap:6px}
+.pitch h1{font-family:var(--f-display);font-weight:400;font-size:1.7rem;line-height:1.1;text-transform:uppercase}
+
+/* ---------- Stoppuhr ---------- */
+.timer{border:3px solid var(--edge);border-radius:14px;box-shadow:var(--sh-lg);padding:20px;display:flex;flex-direction:column;gap:16px;background:var(--yellow);color:var(--on-color)}
+.timer.running{background:var(--lime)}
+.timer.rating{background:var(--pink)}
+.timer .top{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-family:var(--f-mono);font-size:.74rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{display:inline-flex;align-items:center;gap:8px;padding:7px 13px;border:var(--bw) solid #111;border-radius:999px;background:#fff;color:#111;font-weight:700;cursor:pointer;box-shadow:2px 2px 0 #111}
+.chip .sw{border-color:#111}
+.chip[aria-pressed="true"]{background:#111;color:#fff;box-shadow:none;transform:translate(2px,2px)}
+.chip:disabled{cursor:default}
+.chip:disabled:not([aria-pressed="true"]){opacity:.45}
+.readout{font-family:var(--f-mono);font-weight:800;font-size:clamp(2.9rem,12vw,5rem);line-height:.95;letter-spacing:-.04em;font-variant-numeric:tabular-nums}
+.timer-meta{font-weight:600;min-height:1.5em}
+.timer .btn{border-color:#111;box-shadow:3px 3px 0 #111;color:#111;background:#fff}
+.timer .btn.go{background:#111;color:var(--yellow)}
+.timer .btn.stop{background:#111;color:var(--lime)}
+.timer .btn.save{background:#111;color:var(--pink)}
+.timer .btn:active{box-shadow:none}
+.timer .focus5 button{border-color:#111;background:#fff;color:#111;box-shadow:2px 2px 0 #111}
+.timer .focus5 button[aria-pressed="true"]{background:#111;color:#fff;box-shadow:none}
+.timer .inp{border-color:#111;background:#fff;color:#111;width:6.5em}
+.stop-form{display:flex;flex-direction:column;gap:12px;border-top:3px solid #111;padding-top:14px}
+.stop-form .q{font-family:var(--f-display);font-size:1.3rem;text-transform:uppercase}
+
+details.card{gap:0}
+details.card>summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-family:var(--f-display);font-size:1.25rem;text-transform:uppercase}
+details.card>summary::-webkit-details-marker{display:none}
+details.card>summary::after{content:"+";display:grid;place-items:center;width:32px;height:32px;border:var(--bw) solid var(--edge);border-radius:8px;background:var(--cyan);color:var(--on-color);font-family:var(--f-mono);font-weight:800}
+details.card[open]>summary::after{content:"–"}
+details.card[open]>summary{margin-bottom:16px}
+.quick{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+
+/* ---------- Level ---------- */
+.lvl{display:grid;grid-template-columns:auto minmax(0,1fr);gap:16px;align-items:center}
+.lvl-num{width:76px;height:76px;display:grid;place-items:center;background:var(--violet);color:var(--on-color);border:3px solid var(--edge);border-radius:50%;box-shadow:var(--sh-sm);font-family:var(--f-display);font-size:2rem;transform:rotate(-6deg)}
+.lvl-title{font-family:var(--f-display);font-size:1.35rem;line-height:1.1;text-transform:uppercase}
+.meter{height:18px;border:var(--bw) solid var(--edge);border-radius:999px;background:var(--surface);overflow:hidden}
+.meter i{display:block;height:100%;background:var(--violet);border-right:var(--bw) solid var(--edge)}
+.stat3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.mini{border:var(--bw) solid var(--edge);border-radius:8px;padding:8px 10px;background:var(--bg)}
+.mini .v{font-family:var(--f-display);font-size:1.45rem;line-height:1.1}
+.mini .k{font-family:var(--f-mono);font-size:.64rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.streak-note{font-weight:700;padding:8px 12px;border:var(--bw) dashed var(--edge);border-radius:8px}
+.streak-note.ok{background:var(--lime);color:var(--on-color);border-style:solid}
+
+/* ---------- Ziele ---------- */
+.goal{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 12px;align-items:center}
+.goal .nm{display:flex;align-items:center;gap:8px;font-weight:800;min-width:0}
+.goal .nm span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.goal .num{font-family:var(--f-mono);font-size:.85rem;font-weight:700}
+.goal .bar{grid-column:1/-1;height:16px;border:var(--bw) solid var(--edge);border-radius:6px;background:var(--surface);overflow:hidden}
+.goal .bar i{display:block;height:100%}
+.goal .bar i.has{border-right:var(--bw) solid var(--edge)}
+.goal .hint{grid-column:1/-1;font-size:.84rem;color:var(--muted);font-weight:500}
+.pill{display:inline-flex;align-items:center;font-family:var(--f-mono);font-size:.66rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;padding:2px 8px;border:2px solid var(--edge);border-radius:999px;background:var(--lime);color:var(--on-color);flex:none}
+
+/* ---------- Abzeichen ---------- */
+.badges{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:14px 10px}
+.badge{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center}
+.badge .disc{width:58px;height:58px;display:grid;place-items:center;border:3px solid var(--edge);border-radius:14px;font-family:var(--f-display);font-size:1.05rem;box-shadow:3px 3px 0 var(--edge);color:var(--on-color)}
+.badge:nth-child(4n+1) .disc{background:var(--yellow);transform:rotate(-4deg)}
+.badge:nth-child(4n+2) .disc{background:var(--cyan);transform:rotate(3deg)}
+.badge:nth-child(4n+3) .disc{background:var(--pink);transform:rotate(-2deg)}
+.badge:nth-child(4n+4) .disc{background:var(--lime);transform:rotate(4deg)}
+.badge.locked .disc{background:var(--surface)!important;color:var(--muted);border-style:dashed;box-shadow:none;transform:none}
+.badge .bn{font-size:.82rem;font-weight:800;line-height:1.15}
+.badge.locked .bn{color:var(--muted);font-weight:600}
+
+/* ---------- Listen ---------- */
+.list{display:flex;flex-direction:column}
+.row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:4px 12px;align-items:center;padding:10px 0;border-top:2px solid var(--edge)}
+.row:first-child{border-top:0;padding-top:0}
+.row .when{font-family:var(--f-mono);font-size:.8rem;font-weight:700;color:var(--muted);white-space:nowrap}
+.row .what{display:flex;align-items:center;gap:8px;min-width:0;font-weight:700}
+.row .what span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .dur{font-family:var(--f-mono);font-weight:800;white-space:nowrap;text-align:right}
+.row .act{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding-top:6px}
+@media (max-width:520px){.row{grid-template-columns:minmax(0,1fr) auto}.row .when{grid-column:1/-1}}
+.dots{display:inline-flex;gap:2px;flex:none}
+.dots i{width:7px;height:7px;border:1.5px solid var(--edge);border-radius:2px}
+.dots i.on{background:var(--ink)}
+
+/* ---------- Statistik ---------- */
+.toolbar{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-bottom:22px}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:22px}
+@media (max-width:760px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.kpi{border:var(--bw) solid var(--edge);border-radius:var(--r);box-shadow:var(--sh-sm);padding:12px 14px;color:var(--on-color);min-width:0}
+.kpi:nth-child(1){background:var(--yellow)}.kpi:nth-child(2){background:var(--cyan)}.kpi:nth-child(3){background:var(--pink)}.kpi:nth-child(4){background:var(--lime)}
+.kpi .k{font-family:var(--f-mono);font-size:.68rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+.kpi .v{font-family:var(--f-display);font-size:clamp(1.6rem,5vw,2.2rem);line-height:1.1}
+.kpi .d{font-size:.84rem;font-weight:600}
+.chart{width:100%;overflow-x:auto;position:relative}
+.chart svg{display:block}
+.chart text{font-family:var(--f-mono);font-size:11px;font-weight:700;fill:var(--muted)}
+.chart .grid{stroke:var(--edge);stroke-opacity:.14;stroke-width:1}
+.chart .axis{stroke:var(--edge);stroke-width:2}
+.chart .hit{fill:transparent;cursor:crosshair}
+.chart .hit:hover{fill:var(--yellow);fill-opacity:.25}
+.chart .strong{fill:var(--ink)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:.88rem;font-weight:700}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.srows{display:flex;flex-direction:column;gap:12px}
+.srow{display:grid;grid-template-columns:minmax(0,9rem) minmax(0,1fr) auto;gap:4px 10px;align-items:center}
+.srow .nm{display:flex;align-items:center;gap:8px;font-weight:800;min-width:0}
+.srow .nm span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.srow .track{height:16px;border:var(--bw) solid var(--edge);border-radius:6px;background:var(--surface);overflow:hidden}
+.srow .track i{display:block;height:100%}
+.srow .track i.has{border-right:var(--bw) solid var(--edge)}
+.srow .val{font-family:var(--f-mono);font-size:.84rem;font-weight:800;text-align:right;white-space:nowrap}
+.srow .meta{grid-column:2/-1;font-size:.8rem;color:var(--muted);font-weight:600;margin-top:-2px}
+@media (max-width:480px){.srow{grid-template-columns:minmax(0,1fr) auto}.srow .track{grid-column:1/-1;grid-row:2}.srow .meta{grid-column:1/-1}}
+.heat-legend{display:flex;flex-wrap:wrap;align-items:center;gap:5px;font-size:.8rem;font-weight:600;color:var(--muted)}
+.heat-legend i{width:13px;height:13px;border:1.5px solid var(--edge);border-radius:3px}
+
+/* ---------- Rangliste ---------- */
+.group-head{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between}
+.code{font-family:var(--f-mono);font-weight:800;font-size:1.35rem;letter-spacing:.18em;padding:4px 12px;border:var(--bw) solid var(--edge);border-radius:8px;background:var(--cyan);color:var(--on-color);box-shadow:var(--sh-sm)}
+.board{display:flex;flex-direction:column;gap:12px}
+.brow{display:grid;grid-template-columns:2.6rem minmax(0,1fr) auto;gap:6px 12px;align-items:center;border:var(--bw) solid var(--edge);border-radius:var(--r);padding:10px 12px;background:var(--surface)}
+.brow.me{box-shadow:var(--sh-sm)}
+.brow .rk{width:2.6rem;height:2.6rem;display:grid;place-items:center;border:var(--bw) solid var(--edge);border-radius:50%;font-family:var(--f-display);font-size:1.15rem;background:var(--bg)}
+.brow.p1 .rk{background:var(--yellow);color:var(--on-color)}
+.brow.p2 .rk{background:var(--cyan);color:var(--on-color)}
+.brow.p3 .rk{background:var(--pink);color:var(--on-color)}
+.brow .who{min-width:0;display:flex;flex-direction:column}
+.brow .n{font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.brow.me .n::after{content:" (du)";font-weight:500;color:var(--muted)}
+.brow .m{font-size:.8rem;font-weight:600;color:var(--muted);display:flex;flex-wrap:wrap;gap:4px 12px}
+.brow .tot{font-family:var(--f-display);font-size:1.4rem;white-space:nowrap}
+.brow .bar{grid-column:2/-1;height:12px;border:2px solid var(--edge);border-radius:4px;overflow:hidden;background:var(--surface)}
+.brow .bar i{display:block;height:100%}
+.live{color:var(--danger);font-weight:800}
+.invite-box{display:flex;flex-direction:column;gap:10px;border:var(--bw) dashed var(--edge);border-radius:var(--r);padding:14px}
+
+/* ---------- Profil ---------- */
+.se-row{display:grid;grid-template-columns:auto minmax(0,1fr) 8rem auto;gap:10px;align-items:end;padding:12px 0;border-top:2px solid var(--edge)}
+.se-row:first-child{border-top:0;padding-top:0}
+.se-row .sw{width:18px;height:18px;margin-bottom:13px}
+@media (max-width:520px){.se-row{grid-template-columns:auto minmax(0,1fr) 6.5rem}.se-row .rm{grid-column:2/-1;justify-self:start}}
+.intro{background:var(--cyan);color:var(--on-color);border:3px solid var(--edge);border-radius:var(--r);box-shadow:var(--sh);padding:18px;display:flex;flex-direction:column;gap:8px}
+.intro h2{font-size:1.5rem}
+.rules{margin:0;padding-left:1.2em;display:flex;flex-direction:column;gap:6px}
+.boot{padding:60px 0;text-align:center;font-weight:700}
+
+.tip{position:fixed;z-index:50;pointer-events:none;max-width:270px;padding:9px 11px;border:var(--bw) solid var(--edge);border-radius:8px;background:var(--surface);color:var(--ink);box-shadow:var(--sh-sm);font-size:.84rem;line-height:1.35}
+.tip b{font-family:var(--f-display);font-weight:400;text-transform:uppercase}
+.tip .tr{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.tip .tr span{display:inline-flex;align-items:center;gap:6px}
+
+@media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}.logo{transform:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="masthead">
+    <div class="logo">Stundenbuch</div>
+    <div class="tags" id="tags"></div>
+  </header>
+
+  <nav class="tabs" id="tabs" role="tablist" aria-label="Bereiche" hidden>
+    <button role="tab" id="tab-heute" data-tab="heute" aria-selected="true">Heute<span class="live-dot" id="liveDot" hidden></span></button>
+    <button role="tab" id="tab-statistik" data-tab="statistik" aria-selected="false">Statistik</button>
+    <button role="tab" id="tab-rangliste" data-tab="rangliste" aria-selected="false">Rangliste</button>
+    <button role="tab" id="tab-profil" data-tab="profil" aria-selected="false">Profil</button>
+  </nav>
+
+  <div class="banner" id="banner" role="status" hidden><span id="bannerText"></span><button type="button" class="btn sm" id="bannerClose">OK</button></div>
+
+  <main>
+    <!-- Start / Fehlende Einrichtung -->
+    <section id="view-boot" class="boot"><p id="bootMsg">Lade dein Stundenbuch …</p></section>
+
+    <!-- Anmeldung -->
+    <section id="view-auth" class="auth" hidden>
+      <div class="pitch">
+        <h1>Lernzeit messen. Fortschritt sehen. Freunde schlagen.</h1>
+        <p class="muted">Stoppuhr, Wochenziele und Statistik für dein Studium, mit Rangliste für deine Lerngruppe.</p>
+      </div>
+      <div class="card">
+        <div class="auth-switch" id="authSwitch" hidden>
+          <button type="button" data-mode="login" aria-pressed="true">Anmelden</button>
+          <button type="button" data-mode="signup" aria-pressed="false">Registrieren</button>
+        </div>
+        <form id="authForm" class="stack" style="gap:14px" novalidate>
+          <h2 id="authTitle">Anmelden</h2>
+          <p id="authInfo" class="small muted" hidden></p>
+          <label class="field" id="fEmail"><span>E-Mail</span><input type="email" id="authEmail" autocomplete="email" required></label>
+          <label class="field" id="fPass"><span>Passwort</span><input type="password" id="authPass" autocomplete="current-password" minlength="8" required></label>
+          <label class="field" id="fPass2" hidden><span>Passwort wiederholen</span><input type="password" id="authPass2" autocomplete="new-password" minlength="8"></label>
+          <button type="submit" class="btn y big" id="authSubmit">Anmelden</button>
+          <p class="msg" id="authMsg" role="status"></p>
+          <div class="row-btns small">
+            <button type="button" class="linkbtn" id="forgotBtn">Passwort vergessen?</button>
+            <button type="button" class="linkbtn" id="backToLogin" hidden>Zurück zur Anmeldung</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <!-- HEUTE -->
+    <section id="view-heute" hidden>
+      <div class="grid2">
+        <div class="col">
+          <div class="timer" id="timer">
+            <div class="top"><span id="timerState">Stoppuhr</span><span id="timerSince"></span></div>
+            <div class="chips" id="chips" role="group" aria-label="Fach wählen"></div>
+            <div class="readout" id="readout">00:00:00</div>
+            <div class="timer-meta" id="timerMeta"></div>
+            <div class="row-btns" id="timerActions"></div>
+            <div class="stop-form" id="stopForm" hidden></div>
+          </div>
+
+          <details class="card" id="addCard">
+            <summary>Einheit nachtragen</summary>
+            <form id="addForm" class="form" novalidate>
+              <label class="field full"><span>Fach</span><select id="addSubj"></select></label>
+              <label class="field"><span>Datum</span><input type="date" id="addDate"></label>
+              <label class="field"><span>Beginn</span><input type="time" id="addTime"></label>
+              <div class="field full">
+                <label class="lbl" for="addMin">Dauer in Minuten</label>
+                <div class="quick">
+                  <input class="inp" type="number" id="addMin" min="1" max="720" value="45" style="width:7em">
+                  <span class="quick" id="quickMin">
+                    <button type="button" class="btn sm" data-min="25">25</button>
+                    <button type="button" class="btn sm" data-min="45">45</button>
+                    <button type="button" class="btn sm" data-min="60">60</button>
+                    <button type="button" class="btn sm" data-min="90">90</button>
+                  </span>
+                </div>
+              </div>
+              <div class="field full">
+                <span class="lbl">Fokus</span>
+                <div class="focus5" id="addFocus" role="group" aria-label="Fokus"></div>
+              </div>
+              <div class="full row-btns">
+                <button type="submit" class="btn c" id="addSubmit">Eintragen</button>
+                <span class="msg" id="addMsg" role="status"></span>
+              </div>
+            </form>
+          </details>
+
+          <div class="card">
+            <h2>Heute <span class="aside" id="todayTotal"></span></h2>
+            <div class="list" id="todayList"></div>
+          </div>
+        </div>
+        <div class="col">
+          <div class="card" id="levelCard"></div>
+          <div class="card">
+            <h2>Wochenziele <span class="aside" id="goalWeek"></span></h2>
+            <div class="stack" id="goals" style="gap:16px"></div>
+          </div>
+          <div class="card">
+            <h2>Abzeichen <span class="aside" id="badgeCount"></span></h2>
+            <div class="badges" id="badges"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- STATISTIK -->
+    <section id="view-statistik" hidden>
+      <div class="toolbar">
+        <div class="seg" id="rangeSeg" role="group" aria-label="Zeitraum">
+          <button type="button" data-range="7" aria-pressed="true">7 Tage</button>
+          <button type="button" data-range="30" aria-pressed="false">30 Tage</button>
+          <button type="button" data-range="12w" aria-pressed="false">12 Wochen</button>
+        </div>
+        <span class="small muted mono" id="rangeLabel"></span>
+      </div>
+      <div class="kpis" id="kpis"></div>
+      <div class="stack">
+        <div class="card">
+          <h2 id="barTitle">Lernzeit pro Tag</h2>
+          <div class="legend" id="barLegend"></div>
+          <div class="chart" id="barChart"></div>
+        </div>
+        <div class="grid2">
+          <div class="card"><h2>Nach Fach</h2><div class="srows" id="bySubject"></div></div>
+          <div class="card">
+            <h2>Wann du lernst</h2>
+            <p class="small muted">Lernzeit nach Startzeit. Die Zahl über dem Balken ist dein durchschnittlicher Fokus.</p>
+            <div class="chart" id="hourChart"></div>
+          </div>
+        </div>
+        <div class="card">
+          <h2>Kalender <span class="aside">letzte 18 Wochen</span></h2>
+          <div class="chart" id="heatmap"></div>
+          <div class="heat-legend" id="heatLegend"></div>
+        </div>
+        <div class="card">
+          <h2>Verlauf <span class="aside" id="histCount"></span></h2>
+          <div class="list" id="history"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- RANGLISTE -->
+    <section id="view-rangliste" hidden>
+      <div class="stack">
+        <div class="card" id="inviteCard" hidden></div>
+        <div id="groupArea" class="stack"></div>
+        <div class="card">
+          <h2>Gruppe beitreten oder erstellen</h2>
+          <div class="grid2" style="gap:18px">
+            <form id="joinForm" class="stack" style="gap:10px" novalidate>
+              <label class="field"><span>Einladungscode</span><input id="joinCode" maxlength="12" autocomplete="off" placeholder="z. B. K7MPX2" style="text-transform:uppercase;font-family:var(--f-mono);letter-spacing:.12em"></label>
+              <div class="row-btns"><button type="submit" class="btn c">Beitreten</button><span class="msg" id="joinMsg" role="status"></span></div>
+            </form>
+            <form id="createForm" class="stack" style="gap:10px" novalidate>
+              <label class="field"><span>Name der neuen Gruppe</span><input id="createName" maxlength="40" placeholder="z. B. Mechanik-Crew"></label>
+              <div class="row-btns"><button type="submit" class="btn y">Erstellen</button><span class="msg" id="createMsg" role="status"></span></div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PROFIL -->
+    <section id="view-profil" hidden>
+      <div class="stack">
+        <div class="intro" id="setupIntro" hidden>
+          <h2>Willkommen!</h2>
+          <p>Leg fest, wie du in der Rangliste heißt und welche Fächer du lernst. Für jedes Fach kannst du ein Wochenziel setzen. Alles lässt sich später hier ändern.</p>
+        </div>
+        <div class="card">
+          <h2>Dein Name</h2>
+          <label class="field"><span>Spitzname in der Rangliste</span><input id="nickInput" maxlength="30" placeholder="z. B. David"></label>
+        </div>
+        <div class="card">
+          <h2>Fächer &amp; Wochenziele <span class="aside">bis zu 8 Fächer</span></h2>
+          <div id="subjEditor"></div>
+          <div><button type="button" class="btn sm" id="addSubjBtn">+ Fach hinzufügen</button></div>
+        </div>
+        <div class="row-btns">
+          <button type="button" class="btn y big" id="saveProfile">Speichern</button>
+          <span class="msg" id="saveMsg" role="status"></span>
+        </div>
+        <div id="accountArea" class="stack">
+          <div class="card">
+            <h2>Konto</h2>
+            <p>Angemeldet als <b id="accEmail"></b></p>
+            <form id="pwForm" class="form" novalidate>
+              <label class="field"><span>Neues Passwort</span><input type="password" id="pwNew" autocomplete="new-password" minlength="8"></label>
+              <label class="field"><span>Wiederholen</span><input type="password" id="pwNew2" autocomplete="new-password" minlength="8"></label>
+              <div class="full row-btns"><button type="submit" class="btn sm">Passwort ändern</button><span class="msg" id="pwMsg" role="status"></span></div>
+            </form>
+            <div class="row-btns">
+              <button type="button" class="btn" id="logoutBtn">Abmelden</button>
+              <span id="deleteArea"><button type="button" class="btn danger sm" id="deleteBtn">Konto löschen</button></span>
+            </div>
+          </div>
+          <div class="card">
+            <h2>Daten</h2>
+            <p class="small muted">Lade deine Einheiten als Datei herunter, oder übernimm eine Sicherung aus der Browser-Version des Stundenbuchs.</p>
+            <div class="row-btns">
+              <button type="button" class="btn sm" id="exportBtn">Meine Daten herunterladen</button>
+              <label class="btn sm" for="importFile">Sicherung übernehmen</label>
+              <input type="file" id="importFile" accept="application/json,.json" hidden>
+            </div>
+            <div class="confirm small" id="importMsg" role="status"></div>
+          </div>
+          <div class="card">
+            <h2>So wird gezählt</h2>
+            <ul class="rules small">
+              <li><b>XP:</b> 1 XP pro gelernter Minute, dazu 50 XP für jedes erreichte Wochenziel in einem Fach.</li>
+              <li><b>Level:</b> Level 2 ab 60 XP, Level 3 ab 180 XP, Level 4 ab 360 XP. Jedes Level braucht 60 XP mehr als das vorige.</li>
+              <li><b>Serie:</b> Ein Tag zählt ab 20 Minuten Lernzeit. Heute zählt erst, wenn du die 20 Minuten erreicht hast; bis dahin bleibt die Serie von gestern stehen.</li>
+              <li><b>Fokus:</b> Nach jeder Einheit bewertest du kurz, wie konzentriert du warst. Daraus entsteht die Auswertung „Wann du lernst“.</li>
+              <li><b>Sichtbarkeit:</b> Deine Einheiten sehen nur Leute, die mit dir in einer Gruppe sind.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+<div class="tip" id="tip" hidden></div>
+
+<script src="supabase.js"></script>
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
